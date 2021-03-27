@@ -1,0 +1,70 @@
+---
+title: "Hierarchical Models Demo"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(tidyverse) 
+library(rstanarm)
+library(lme4)
+options(mc.cores=parallel::detectCores())
+```
+
+
+
+1. Simulate data from a "random slopes, random intercept" model framework.
+
+```{r}
+m <- 12 # number of groups
+mu_alpha <- 5
+sigmasq_alpha <- 1
+alpha <- rnorm(m, mu_alpha, sigmasq_alpha)
+
+mu_beta <- 1
+sigmasq_beta <- 1
+beta <- rnorm(m, mu_beta, sigmasq_beta)
+
+
+n <- 20
+x <- runif(n * m, -1, 1)
+
+mean_val <- rep(alpha, each =n) + x * rep(beta, each = n)
+y <- rnorm(m * n, mean = mean_val, sd = 1 )
+
+hm_dat <- tibble( y = y, x = x, group = factor(rep(1:m, each = n)) )
+```
+
+
+2. Create a plot that displays the simulated data, in this figure ignore the groups. 
+
+```{r}
+hm_dat %>% ggplot(aes(y=y, x=x)) +
+  geom_point()  + geom_smooth(formula = 'y~x', method = 'lm') + theme_bw() 
+```
+
+
+3. Now create a figure (faceted and/or colored) that highlights the group differences.
+
+```{r}
+hm_dat %>% ggplot(aes(y=y, x=x, color = group)) +
+  geom_point() + facet_wrap(.~ group) + geom_smooth(formula = 'y~x', method = 'lm') +
+  theme_bw() + theme(legend.position = 'none')
+```
+
+
+4. Fit the model and compare the estimated values with simulated values
+
+```{r}
+lmer_mod <- lmer(y ~ x + (1 + x|group), data = hm_dat)
+summary(lmer_mod)
+coef(lmer_mod) 
+cbind(alpha, beta)
+```
+
+```{r}
+glmer_mod <- stan_glmer(y ~ x + (1 + x|group), data = hm_dat)
+print(glmer_mod)
+coef(glmer_mod)
+cbind(alpha, beta)
+```
